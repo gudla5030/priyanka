@@ -1,0 +1,53 @@
+trigger:
+  branches:
+    include:
+    - main
+variables:
+- name: isMain
+  value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+stages:
+- stage: __default
+  jobs:
+  - job: Job
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: "16.x"
+      displayName: "Install Node.js"
+    - task: CmdLine@2
+      displayName: "Versions"
+      inputs:
+        script: |
+          echo "node" $(node -v)
+          echo "npm" $(npm -v)
+          echo "gitbranch" $(Build.SourceBranch)
+    - task: ArtifactoryNpm@2
+      inputs:
+        command: "install"
+        artifactoryService: "JFrog_Digital"
+        sourceRepo: "digital-shared-component-library-npm-all-virtual"
+    - task: CmdLine@2
+      displayName: yarn build-only
+      env:
+        VITE_BASE_API_URL: $(VITE_BASE_API_URL)
+      inputs:
+        script: yarn build-only
+    - task: CmdLine@2
+      displayName: "Yarn lint"
+      inputs:
+        script: yarn format
+    - task: CmdLine@2
+      displayName: "Run yarn test"
+      inputs:
+        script: yarn test
+    - task: AzureStaticWebApp@0
+      condition: eq(variables.isMain, true)
+      inputs:
+        app_location: "/dist"
+        skip_app_build: true
+        skip_api_build: true
+        verbose: true
+        azure_static_web_apps_api_token: "58f68ad90f47c4faf4adb4c3499a8e904b73a505efde574b51fb3c8ecb600fa53-d3f5dca2-6e3c-4d50-82ca-1c8aa4865cc901e43192"
+
